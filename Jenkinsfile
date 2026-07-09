@@ -8,6 +8,8 @@ pipeline {
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_NAME = "${ECR_REGISTRY}/${ECR_REPO}"
         IMAGE_TAG = "build-${BUILD_NUMBER}"
+        PROD_HOST = '3.84.86.151'
+        PROD_USER = 'ec2-user'
     }
 
     stages {
@@ -48,14 +50,38 @@ pipeline {
                 sh 'docker push ${IMAGE_NAME}:latest'
             }
         }
+
+        stage('Deploy to Production') {
+            steps {
+                sshagent(['prod-ssh-key-ab']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_HOST} '
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
+                            docker pull ${IMAGE_NAME}:latest &&
+                            docker stop calculator-app || true &&
+                            docker rm calculator-app || true &&
+                            docker run -d --name calculator-app -p 5000:5000 ${IMAGE_NAME}:latest &&
+                            sleep 5 &&
+                            curl -f http://localhost:5000/health
+                        '
+                    """
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'CI pipeline completed successfully'
+            echo 'CI/CD pipeline completed successfully'
         }
         failure {
-            echo 'CI pipeline failed'
+            echo 'CI/CD pipeline failed'
         }
     }
 }
+
+
+
+
+
+
