@@ -27,7 +27,18 @@ pipeline {
 
         stage('Run Tests in Docker') {
             steps {
-                sh 'mkdir -p test-reports && docker run --rm -v "$PWD/test-reports:/app/test-reports" ${ECR_REPO}:latest python -m xmlrunner discover -s tests -o test-reports'
+                 sh '''
+rm -rf test-reports
+mkdir -p test-reports
+docker rm -f test-runner || true
+docker create --name test-runner ${ECR_REPO}:latest python -m xmlrunner discover -s tests -o /app/test-reports
+docker start -a test-runner
+TEST_EXIT=$?
+docker cp test-runner:/app/test-reports/. test-reports/ || true
+docker rm test-runner || true
+ls -la test-reports
+exit $TEST_EXIT
+'''
             }
         }
 
@@ -75,7 +86,7 @@ pipeline {
 
     post {
 always {
-    junit 'test-reports/*.xml'
+junit allowEmptyResults: true, testResults: 'test-reports/*.xml'
 }
         success {
             echo 'CI/CD pipeline completed successfully'
