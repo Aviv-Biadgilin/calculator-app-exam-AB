@@ -77,8 +77,7 @@ exit $TEST_EXIT
                         ssh -o StrictHostKeyChecking=no ${PROD_USER}@${PROD_HOST} '
                             aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
                             docker pull ${IMAGE_NAME}:latest &&
-                            docker stop calculator-app || true &&
-                            docker rm calculator-app || true &&
+                            docker rm -f calculator-app || true &&
                             docker run -d --name calculator-app -p 5000:5000 ${IMAGE_NAME}:latest &&
                             sleep 5 &&
                             curl -f http://localhost:5000/health
