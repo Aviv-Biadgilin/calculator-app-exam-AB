@@ -7,7 +7,7 @@ pipeline {
         ECR_REPO = 'calculator-app-exam-ab'
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_NAME = "${ECR_REGISTRY}/${ECR_REPO}"
-        IMAGE_TAG = "build-${BUILD_NUMBER}"
+        IMAGE_TAG = "${env.CHANGE_ID ? "pr-${env.CHANGE_ID}-build-${env.BUILD_NUMBER}" : "build-${env.BUILD_NUMBER}"}"
         PROD_HOST = '10.0.1.35'
         PROD_USER = 'ec2-user'
     }
