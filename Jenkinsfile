@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+    dockerfile {
+        filename 'ci-agent.Dockerfile'
+        args '-v /var/run/docker.sock:/var/run/docker.sock'
+    }
+}
 
     environment {
         AWS_REGION = 'us-east-1'
@@ -7,7 +12,7 @@ pipeline {
         ECR_REPO = 'calculator-app-exam-ab'
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_NAME = "${ECR_REGISTRY}/${ECR_REPO}"
-        IMAGE_TAG = "build-${BUILD_NUMBER}"
+        IMAGE_TAG = "${env.CHANGE_ID ? "pr-${env.CHANGE_ID}-build-${env.BUILD_NUMBER}" : "build-${env.BUILD_NUMBER}"}"
         PROD_HOST = '10.0.1.35'
         PROD_USER = 'ec2-user'
     }
@@ -27,7 +32,18 @@ pipeline {
 
         stage('Run Tests in Docker') {
             steps {
-                sh 'docker run --rm ${ECR_REPO}:latest python -m unittest discover -s tests -v'
+                 sh '''
+rm -rf test-reports
+mkdir -p test-reports
+docker rm -f test-runner || true
+docker create --name test-runner ${ECR_REPO}:latest python -m xmlrunner discover -s tests -o /app/test-reports
+docker start -a test-runner
+TEST_EXIT=$?
+docker cp test-runner:/app/test-reports/. test-reports/ || true
+docker rm test-runner || true
+ls -la test-reports
+exit $TEST_EXIT
+'''
             }
         }
 
@@ -74,6 +90,9 @@ pipeline {
     }
 
     post {
+always {
+junit allowEmptyResults: true, testResults: 'test-reports/*.xml'
+}
         success {
             echo 'CI/CD pipeline completed successfully'
         }
