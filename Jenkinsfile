@@ -52,6 +52,9 @@ pipeline {
         }
 
         stage('Deploy to Production') {
+            when {
+                expression { return env.CHANGE_ID == null }
+            }
             steps {
                 sshagent(['prod-ssh-key-ab']) {
                     sh """
@@ -79,9 +82,3 @@ pipeline {
         }
     }
 }
-
-
-
-
-
-
