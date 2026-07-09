@@ -27,7 +27,7 @@ pipeline {
 
         stage('Run Tests in Docker') {
             steps {
-                sh 'docker run --rm ${ECR_REPO}:latest python -m unittest discover -s tests -v'
+                sh 'mkdir -p test-reports && docker run --rm -v "$PWD/test-reports:/app/test-reports" ${ECR_REPO}:latest python -m xmlrunner discover -s tests -o test-reports'
             }
         }
 
@@ -74,6 +74,9 @@ pipeline {
     }
 
     post {
+always {
+    junit 'test-reports/*.xml'
+}
         success {
             echo 'CI/CD pipeline completed successfully'
         }
